@@ -236,6 +236,15 @@ def run(data,
     # Print results
     pf = '%20s' + '%11i' * 2 + '%11.3g' * 4  # print format
     print(pf % ('all', seen, nt.sum(), mp, mr, map50, map))
+    with open(save_dir / 'summary.txt', 'a') as f:
+        f.write(('%20s' + '%11s' * 6) %
+                ('Class', 'Images', 'Labels', 'P', 'R', 'mAP@.5', 'mAP@.5:.95\n'))
+        f.write(pf % ('all', seen, nt.sum(), mp, mr, map50, map) + '\n')
+        # Print results per class
+        if (verbose or (nc < 50 and not training)) and nc > 1 and len(stats):
+            for i, c in enumerate(ap_class):
+                print(pf % (names[c], seen, nt[c], p[i], r[i], ap50[i], ap[i]))
+                f.write(pf % (names[c], seen, nt[c], p[i], r[i], ap50[i], ap[i]) + '\n')
 
     # Print results per class
     if (verbose or (nc < 50 and not training)) and nc > 1 and len(stats):
