@@ -13,6 +13,11 @@ from multiprocessing.pool import ThreadPool, Pool
 from pathlib import Path
 from threading import Thread
 
+from skimage.io import imread
+from skimage.exposure import rescale_intensity
+from skimage.color import gray2rgb
+from skimage.util import img_as_ubyte
+
 import cv2
 import numpy as np
 import torch
@@ -209,7 +214,7 @@ class LoadImages:  # for inference
         else:
             # Read image
             self.count += 1
-            img0 = cv2.imread(path)  # BGR
+            img0 = img_as_ubyte(gray2rgb(rescale_intensity(imread(path))))  # BGR
             assert img0 is not None, 'Image Not Found ' + path
             print(f'image {self.count}/{self.nf} {path}: ', end='')
 
@@ -636,7 +641,7 @@ def load_image(self, i):
             im = np.load(npy)
         else:  # read image
             path = self.img_files[i]
-            im = cv2.imread(path)  # BGR
+            im = img_as_ubyte(gray2rgb(rescale_intensity(imread(path))))  # BGR
             assert im is not None, 'Image Not Found ' + path
         h0, w0 = im.shape[:2]  # orig hw
         r = self.img_size / max(h0, w0)  # ratio
@@ -803,7 +808,7 @@ def extract_boxes(path='../datasets/coco128'):  # from utils.datasets import *; 
     for im_file in tqdm(files, total=n):
         if im_file.suffix[1:] in IMG_FORMATS:
             # image
-            im = cv2.imread(str(im_file))[..., ::-1]  # BGR to RGB
+            im = img_as_ubyte(gray2rgb(rescale_intensity(imread(str(im_file)))))[..., ::-1]  # BGR to RGB
             h, w = im.shape[:2]
 
             # labels
