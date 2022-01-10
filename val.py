@@ -238,7 +238,7 @@ def run(data,
     print(pf % ('all', seen, nt.sum(), mp, mr, map50, map))
     with open(save_dir / 'summary.txt', 'a') as f:
         f.write(('%20s' + '%11s' * 6) %
-                ('Class', 'Images', 'Labels', 'P', 'R', 'mAP@.5', 'mAP@.5:.95\n'))
+                ('Class', 'Images', 'Labels', 'P', 'R', 'mAP@.5', 'mAP@.5:.95') + '\n')
         f.write(pf % ('all', seen, nt.sum(), mp, mr, map50, map) + '\n')
         # Print results per class
         if (verbose or (nc < 50 and not training)) and nc > 1 and len(stats):
