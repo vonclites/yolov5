@@ -31,10 +31,10 @@ from utils.callbacks import Callbacks
 def save_one_txt(predn, save_conf, shape, file):
     # Save one txt result
     gn = torch.tensor(shape)[[1, 0, 1, 0]]  # normalization gain whwh
-    for *xyxy, joint_prob, cls, obj_prob in predn.tolist():
+    for *xyxy, joint_prob, cls, obj_prob, iou in predn.tolist():
         xywh = (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()  # normalized xywh
         cls_prob = joint_prob / obj_prob
-        line = (cls, *xywh, joint_prob, obj_prob, cls_prob) if save_conf else (cls, *xywh)  # label format
+        line = (cls, *xywh, joint_prob, obj_prob, cls_prob, iou) if save_conf else (cls, *xywh)  # label format
         with open(file, 'a') as f:
             f.write(('%g ' * len(line)).rstrip() % line + '\n')
 
@@ -212,7 +212,8 @@ def run(data,
 
             # Save/log
             if save_txt:
-                save_one_txt(torch.cat((predn, obj_score), 1), save_conf, shape, file=save_dir / 'labels' / (path.stem + '.txt'))
+                iou = box_iou(predn[:, :4], labelsn[:, 1:]) if nl else torch.zeros(obj_score.shape)
+                save_one_txt(torch.cat((predn, obj_score, iou), 1), save_conf, shape, file=save_dir / 'labels' / (path.stem + '.txt'))
             if save_json:
                 save_one_json(predn, jdict, path, class_map)  # append to COCO-JSON dictionary
             callbacks.on_val_image_end(pred, predn, path, names, img[si])
