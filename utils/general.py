@@ -512,6 +512,10 @@ def non_max_suppression(prediction, conf_thres=0.25, iou_thres=0.45, classes=Non
     Returns:
          list of detections, on (n,6) tensor per image [xyxy, conf, cls]
     """
+    if agnostic:
+        # Hack to make joint probability equal to object probability
+        prediction = prediction[:, :, :6]
+        prediction[:, :, 5] = 1.0
 
     nc = prediction.shape[2] - 5  # number of classes
     xc = prediction[..., 4] > conf_thres  # candidates

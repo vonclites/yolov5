@@ -36,7 +36,7 @@ def save_one_txt(predn, save_conf, shape, file):
         cls_prob = joint_prob / obj_prob
         line = (cls, *xywh, joint_prob, obj_prob, cls_prob, iou) if save_conf else (cls, *xywh)  # label format
         with open(file, 'a') as f:
-            f.write(('%g ' * len(line)).rstrip() % line + '\n')
+            f.write(' '.join(np.array(line, dtype=str)) + '\n')
 
 
 def save_one_json(predn, jdict, path, class_map):
@@ -182,6 +182,10 @@ def run(data,
         # Statistics per image
         for si, (pred, obj_score) in enumerate(zip(out, obj_scores)):
             labels = targets[targets[:, 0] == si, 1:]
+
+            if single_cls:
+                labels[:, 0] = 0.0
+
             nl = len(labels)
             tcls = labels[:, 0].tolist() if nl else []  # target class
             path, shape = Path(paths[si]), shapes[si][0]
@@ -194,7 +198,7 @@ def run(data,
 
             # Predictions
             if single_cls:
-                pred[:, 5] = 0
+                pred[:, 5] = 0.0
             predn = pred.clone()
             scale_coords(img[si].shape[1:], predn[:, :4], shape, shapes[si][1])  # native-space pred
 

@@ -30,6 +30,7 @@ def ap_per_class(tp, conf, pred_cls, target_cls, plot=False, save_dir='.', names
     """
 
     # Sort by objectness
+    conf = conf.astype(np.float64)
     i = np.argsort(-conf)
     tp, conf, pred_cls = tp[i], conf[i], pred_cls[i]
 
@@ -53,7 +54,7 @@ def ap_per_class(tp, conf, pred_cls, target_cls, plot=False, save_dir='.', names
             tpc = tp[i].cumsum(0)
 
             # Recall
-            recall = tpc / (n_l + 1e-16)  # recall curve
+            recall = tpc / (n_l)  # recall curve
             r[ci] = np.interp(-px, -conf[i], recall[:, 0], left=0)  # negative x, xp because xp decreases
 
             # Precision
