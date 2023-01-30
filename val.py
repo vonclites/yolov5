@@ -240,7 +240,7 @@ def run(data,
         nt = torch.zeros(1)
 
     # Print results
-    pf = '%20s' + '%11i' * 2 + '%11.3g' * 4  # print format
+    pf = '%20s' + '%11i' * 2 + '%19.5g' * 4  # print format
     print(pf % ('all', seen, nt.sum(), mp, mr, map50, map))
     with open(save_dir / 'summary.txt', 'a') as f:
         f.write(('%20s' + '%11s' * 6) %
