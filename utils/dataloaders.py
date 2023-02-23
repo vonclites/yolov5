@@ -34,6 +34,9 @@ from utils.general import (DATASETS_DIR, LOGGER, NUM_THREADS, check_dataset, che
                            cv2, is_colab, is_kaggle, segments2boxes, xyn2xy, xywh2xyxy, xywhn2xyxy, xyxy2xywhn)
 from utils.torch_utils import torch_distributed_zero_first
 
+from skimage.io import imread
+from skimage.transform import rescale
+
 # Parameters
 HELP_URL = 'https://github.com/ultralytics/yolov5/wiki/Train-Custom-Data'
 IMG_FORMATS = 'bmp', 'dng', 'jpeg', 'jpg', 'mpo', 'png', 'tif', 'tiff', 'webp'  # include image suffixes
@@ -245,7 +248,7 @@ class LoadImages:
         else:
             # Read image
             self.count += 1
-            img0 = cv2.imread(path)  # BGR
+            img0 = imread(path)  # BGR
             assert img0 is not None, f'Image Not Found {path}'
             s = f'image {self.count}/{self.nf} {path}: '
 
@@ -674,12 +677,13 @@ class LoadImagesAndLabels(Dataset):
             if fn.exists():  # load npy
                 im = np.load(fn)
             else:  # read image
-                im = cv2.imread(f)  # BGR
+                im = imread(f)  # BGR
                 assert im is not None, f'Image Not Found {f}'
             h0, w0 = im.shape[:2]  # orig hw
             r = self.img_size / max(h0, w0)  # ratio
             if r != 1:  # if sizes are not equal
-                interp = cv2.INTER_LINEAR if (self.augment or r > 1) else cv2.INTER_AREA
+                # interp = cv2.INTER_LINEAR if (self.augment or r > 1) else cv2.INTER_AREA
+                interp = cv2.INTER_LINEAR
                 im = cv2.resize(im, (int(w0 * r), int(h0 * r)), interpolation=interp)
             return im, (h0, w0), im.shape[:2]  # im, hw_original, hw_resized
         return self.ims[i], self.im_hw0[i], self.im_hw[i]  # im, hw_original, hw_resized
@@ -688,7 +692,7 @@ class LoadImagesAndLabels(Dataset):
         # Saves an image as an *.npy file for faster loading
         f = self.npy_files[i]
         if not f.exists():
-            np.save(f.as_posix(), cv2.imread(self.im_files[i]))
+            np.save(f.as_posix(), imread(self.im_files[i]))
 
     def load_mosaic(self, index):
         # YOLOv5 4-mosaic loader. Loads 1 image + 3 random images into a 4-image mosaic
@@ -878,7 +882,7 @@ def extract_boxes(path=DATASETS_DIR / 'coco128'):  # from utils.dataloaders impo
     for im_file in tqdm(files, total=n):
         if im_file.suffix[1:] in IMG_FORMATS:
             # image
-            im = cv2.imread(str(im_file))[..., ::-1]  # BGR to RGB
+            im = imread(str(im_file))[..., ::-1]  # BGR to RGB
             h, w = im.shape[:2]
 
             # labels
@@ -933,17 +937,18 @@ def verify_image_label(args):
     nm, nf, ne, nc, msg, segments = 0, 0, 0, 0, '', []  # number (missing, found, empty, corrupt), message, segments
     try:
         # verify images
-        im = Image.open(im_file)
-        im.verify()  # PIL verify
-        shape = exif_size(im)  # image size
+        im = imread(im_file)
+        # im.verify()  # PIL verify
+        # shape = exif_size(im)  # image size
+        shape = im.shape[:2][::-1]  # expects (w, h)
         assert (shape[0] > 9) & (shape[1] > 9), f'image size {shape} <10 pixels'
-        assert im.format.lower() in IMG_FORMATS, f'invalid image format {im.format}'
-        if im.format.lower() in ('jpg', 'jpeg'):
-            with open(im_file, 'rb') as f:
-                f.seek(-2, 2)
-                if f.read() != b'\xff\xd9':  # corrupt JPEG
-                    ImageOps.exif_transpose(Image.open(im_file)).save(im_file, 'JPEG', subsampling=0, quality=100)
-                    msg = f'{prefix}WARNING: {im_file}: corrupt JPEG restored and saved'
+        # assert im.format.lower() in IMG_FORMATS, f'invalid image format {im.format}'
+        # if im.format.lower() in ('jpg', 'jpeg'):
+        #     with open(im_file, 'rb') as f:
+        #         f.seek(-2, 2)
+        #         if f.read() != b'\xff\xd9':  # corrupt JPEG
+        #             ImageOps.exif_transpose(Image.open(im_file)).save(im_file, 'JPEG', subsampling=0, quality=100)
+        #             msg = f'{prefix}WARNING: {im_file}: corrupt JPEG restored and saved'
 
         # verify labels
         if os.path.isfile(lb_file):
@@ -1032,14 +1037,14 @@ class HUBDatasetStats():
         # HUB ops for 1 image 'f': resize and save at reduced quality in /dataset-hub for web/app viewing
         f_new = self.im_dir / Path(f).name  # dataset-hub image filename
         try:  # use PIL
-            im = Image.open(f)
-            r = max_dim / max(im.height, im.width)  # ratio
+            im = imread(f)
+            r = max_dim / max(im.shape[0], im.shape[1])  # ratio
             if r < 1.0:  # image too large
                 im = im.resize((int(im.width * r), int(im.height * r)))
             im.save(f_new, 'JPEG', quality=50, optimize=True)  # save
         except Exception as e:  # use OpenCV
             print(f'WARNING: HUB ops PIL failure {f}: {e}')
-            im = cv2.imread(f)
+            im = imread(f)
             im_height, im_width = im.shape[:2]
             r = max_dim / max(im_height, im_width)  # ratio
             if r < 1.0:  # image too large
@@ -1116,13 +1121,13 @@ class ClassificationDataset(torchvision.datasets.ImageFolder):
         f, j, fn, im = self.samples[i]  # filename, index, filename.with_suffix('.npy'), image
         if self.album_transforms:
             if self.cache_ram and im is None:
-                im = self.samples[i][3] = cv2.imread(f)
+                im = self.samples[i][3] = imread(f)
             elif self.cache_disk:
                 if not fn.exists():  # load npy
-                    np.save(fn.as_posix(), cv2.imread(f))
+                    np.save(fn.as_posix(), imread(f))
                 im = np.load(fn)
             else:  # read image
-                im = cv2.imread(f)  # BGR
+                im = imread(f)  # BGR
             sample = self.album_transforms(image=cv2.cvtColor(im, cv2.COLOR_BGR2RGB))["image"]
         else:
             sample = self.torch_transforms(self.loader(f))

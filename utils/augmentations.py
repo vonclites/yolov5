@@ -66,7 +66,7 @@ def augment_hsv(im, hgain=0.5, sgain=0.5, vgain=0.5):
     # HSV color-space augmentation
     if hgain or sgain or vgain:
         r = np.random.uniform(-1, 1, 3) * [hgain, sgain, vgain] + 1  # random gains
-        hue, sat, val = cv2.split(cv2.cvtColor(im, cv2.COLOR_BGR2HSV))
+        hue, sat, val = cv2.split(cv2.cvtColor(im[:, :, :3], cv2.COLOR_BGR2HSV))
         dtype = im.dtype  # uint8
 
         x = np.arange(0, 256, dtype=r.dtype)
@@ -75,7 +75,8 @@ def augment_hsv(im, hgain=0.5, sgain=0.5, vgain=0.5):
         lut_val = np.clip(x * r[2], 0, 255).astype(dtype)
 
         im_hsv = cv2.merge((cv2.LUT(hue, lut_hue), cv2.LUT(sat, lut_sat), cv2.LUT(val, lut_val)))
-        cv2.cvtColor(im_hsv, cv2.COLOR_HSV2BGR, dst=im)  # no return needed
+        im_hsv = cv2.cvtColor(im_hsv, cv2.COLOR_HSV2BGR)
+        im[:, :, :3] = im_hsv
 
 
 def hist_equalize(im, clahe=True, bgr=False):
@@ -135,8 +136,13 @@ def letterbox(im, new_shape=(640, 640), color=(114, 114, 114), auto=True, scaleF
         im = cv2.resize(im, new_unpad, interpolation=cv2.INTER_LINEAR)
     top, bottom = int(round(dh - 0.1)), int(round(dh + 0.1))
     left, right = int(round(dw - 0.1)), int(round(dw + 0.1))
-    im = cv2.copyMakeBorder(im, top, bottom, left, right, cv2.BORDER_CONSTANT, value=color)  # add border
-    return im, ratio, (dw, dh)
+    if im.shape[2] > 3:
+        im1 = cv2.copyMakeBorder(im[:, :, :3], top, bottom, left, right, cv2.BORDER_CONSTANT, value=color)  # add border
+        im2 = cv2.copyMakeBorder(im[:, :, 3:], top, bottom, left, right, cv2.BORDER_CONSTANT, value=color)  # add border
+        return np.concatenate([im1, im2], axis=2), ratio, (dw, dh)
+    else:
+        im = cv2.copyMakeBorder(im, top, bottom, left, right, cv2.BORDER_CONSTANT, value=color)  # add border
+        return im, ratio, (dw, dh)
 
 
 def random_perspective(im,
